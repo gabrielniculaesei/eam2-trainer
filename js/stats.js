@@ -46,7 +46,7 @@
 
     const exams = d.exams.slice(-8).reverse();
     main.innerHTML = `
-      <h1>Statistiche</h1>
+      <h1>Progressi</h1>
       <div class="stat-grid">
         <div class="stat"><div class="v">${seen}<span class="dim small"> / ${tot}</span></div><div class="l">domande viste</div></div>
         <div class="stat"><div class="v">${a ? pct(c / a) : "-"}</div><div class="l">risposte giuste (media)</div></div>
@@ -94,7 +94,7 @@
       const ok = await window.UI.confirm("Azzerare tutte le statistiche, le flashcard e lo storico? L'operazione non si può annullare (esporta prima, se vuoi tenerle).", "azzera");
       if (!ok) return;
       window.STORE.reset();
-      window.UI.toast("Statistiche azzerate.");
+      window.UI.toast("Progressi azzerati.");
       window.ROUTER.refresh();
     });
   }

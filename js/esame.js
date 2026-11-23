@@ -9,11 +9,10 @@
   const QZ = () => window.QUIZ, EX = () => window.ESERCIZI_UI, TH = () => window.TEORIA_UI;
 
   const FORMATI = {
-    pi2627: { l: "P.I. 2026/27", d: "Sei quesiti come nell'esempio pubblicato per quest'anno: completamento di una dimostrazione, risposta multipla di teoria, primitiva con valore assoluto, equazioni lineari, forma della soluzione, somme di soluzioni.", min: 90 },
+    pi2627: { l: "P.I. 2026/27 (sei quesiti)", d: "Sei quesiti pescati da tutto il programma, con la forma dell'esempio pubblicato: teorici (dimostrazioni guidate, risposte multiple, implicazioni, enunciati) e tecnici (esercizi da svolgere, domande di calcolo). Ogni simulazione è diversa.", min: 90 },
     pi2025: { l: "P.I. 2025 (compito A o B)", d: "Un teorema da enunciare e dimostrare e un esercizio. Compito A: teorema sulle equazioni differenziali e primitiva con valore assoluto. Compito B: teorema sugli integrali e problema di Cauchy.", min: 90 },
     completo: { l: "Esame completo (capp. 1-2)", d: "Come l'esame di chi non supera la P.I., limitato ai primi due capitoli: un teorema e un esercizio pescati da tutto il programma.", min: 90 }
   };
-  const T1 = ["primitive", "riemann", "proprieta", "funzione_integrale", "misura", "indefinito"];
 
   let S = null;        // simulazione in corso
   let tick = null;
@@ -47,14 +46,7 @@
     const thms = cap => TH().proofs().filter(n => cap == null || n._cap.cap === cap);
     let items = [];
     if (fmt === "pi2627") {
-      items = [
-        P(qItem(q => q.type === "cloze"), "T"),
-        P(qItem(q => q.type === "mcq" && T1.includes(q.topic)), "T"),
-        P(exItem(["valore_assoluto"], ["gen-abs-poly", "gen-abs-exp"]), "E"),
-        P(qItem(q => q.type === "multi" && q.topic === "generalita", ["gen-lineari"]) || qItem(q => q.type === "multi"), "T"),
-        opt.pc ? P(exItem(["cauchy"], ["gen-pc2"]), "E") : P(qItem(q => q.type === "mcq" && q.topic === "somiglianza", ["gen-forma"]), "E"),
-        P(qItem(q => q.type === "mcq" && q.topic === "struttura") || qItem(q => q.type === "mcq" && q.topic === "primo_ordine"), "T")
-      ];
+      items = buildPI(r, Q, E, G, thms(null));
     } else if (fmt === "pi2025") {
       const A = opt.compito === "A";
       items = [
@@ -68,8 +60,54 @@
       ];
     }
     items = items.filter(Boolean);
-    const label = (fmt === "pi2025" ? `P.I. 2025, compito ${opt.compito}` : FORMATI[fmt].l) + (fmt === "pi2627" && opt.pc ? ", variante con PC" : "");
+    const label = fmt === "pi2025" ? `P.I. 2025, compito ${opt.compito}` : FORMATI[fmt].l;
     return { kind: "esame", fmt, label, items, ans: {}, texts: {}, start: Date.now(), dur: (opt.min || FORMATI[fmt].min) * 60000, done: false };
+  }
+
+  /* P.I. in sei quesiti pescati da tutto il programma, con la forma dell'esempio
+     della docente ma senza fissare gli argomenti: 3 o 4 teorici (almeno una
+     dimostrazione guidata o un'implicazione), gli altri tecnici (almeno un
+     esercizio da svolgere), entrambi i capitoli, mai due quesiti sullo stesso
+     argomento. */
+  const THEORY_T = ["cloze", "impl", "vf", "multi"];
+  const isTheory = q => THEORY_T.includes(q.type) || (q.type === "mcq" && !q.chk);
+  const isTech = q => q.type === "mcq" && !!q.chk;
+  function buildPI(r, Q, E, G, thms) {
+    const used = new Set(), caps = { 1: 0, 2: 0 }, types = {};
+    const nT = r.next() < 0.5 ? 3 : 4, nE = 6 - nT;
+    const capOk = c => {
+      const left = 6 - caps[1] - caps[2];
+      const other = c === 1 ? 2 : 1;
+      return caps[other] > 0 || left > 2 || caps[c] === 0;   // lascia posto all'altro capitolo
+    };
+    const take = (cands, mk) => {
+      let c = cands.filter(o => !used.has(o.topic) && capOk(o.cap));
+      if (!c.length) c = cands.filter(o => !used.has(o.topic));
+      if (!c.length) return null;
+      const o = r.pick(c);
+      used.add(o.topic); caps[o.cap] = (caps[o.cap] || 0) + 1;
+      return mk(o);
+    };
+    const q = (pred, part) => take(Q.filter(pred).filter(x => (types[x.type] || 0) < 2), o => { types[o.type] = (types[o.type] || 0) + 1; return { k: "q", id: o.id, part }; });
+    const T = [], X = [];
+    // teorici
+    T.push(q(x => x.type === "cloze" || x.type === "impl", "T"));
+    if (r.next() < 0.25) T.push(take(thms.map(n => ({ id: n.id, topic: n.topic, cap: n._cap.cap })), o => ({ k: "thm", id: o.id, part: "T" })));
+    while (T.filter(Boolean).length < nT) { const it = q(isTheory, "T"); if (!it) break; T.push(it); }
+    // tecnici: almeno un esercizio da svolgere, poi esercizi o domande di calcolo
+    const exCands = E.concat(G.filter(g => !g.mcq).map(g => ({ topic: g.topic, cap: g.cap, gen: g.id })));
+    const ex = () => take(exCands, o => o.gen ? { k: "ex", gen: o.gen, seed: window.RNG.randomSeed(), part: "E" } : { k: "ex", id: o.id, part: "E" });
+    const tq = () => {
+      const gq = G.filter(g => g.mcq && !used.has(g.topic));
+      if (gq.length && r.next() < 0.3) return take(gq.map(g => ({ topic: g.topic, cap: g.cap, gen: g.id })), o => ({ k: "gq", gen: o.gen, seed: window.RNG.randomSeed(), part: "E" }));
+      return q(isTech, "E");
+    };
+    X.push(ex());
+    while (X.filter(Boolean).length < nE) { const it = r.next() < 0.5 ? ex() : tq(); X.push(it || ex()); if (X.length > 8) break; }
+    // ordine come nelle prove: teoria e tecnica alternate, si comincia dalla teoria
+    const t = T.filter(Boolean), x = X.filter(Boolean), out = [];
+    while (t.length || x.length) { if (t.length) out.push(t.shift()); if (t.length > x.length) out.push(t.shift()); if (x.length) out.push(x.shift()); }
+    return out.slice(0, 6);
   }
 
   /* l'oggetto da mostrare per un elemento (domanda, esercizio, generatore) */
@@ -103,7 +141,6 @@
         <label class="fmt card"><input type="radio" name="fmt" value="${k}" ${k === "pi2627" ? "checked" : ""}>
           <span class="fmt-l">${esc(f.l)}</span><span class="fmt-d">${esc(f.d)}</span></label>`).join("")}</div>
       <div class="card">
-        <div id="optPI"><label class="check" style="margin-top:0"><input type="checkbox" id="optPC"> variante con un problema di Cauchy al posto del quesito sulla forma della soluzione</label></div>
         <div id="optAB" class="hidden"><span class="field-label">Compito</span><div class="chips"><button type="button" class="chip" aria-pressed="true" data-c="A">A</button><button type="button" class="chip" aria-pressed="false" data-c="B">B</button></div></div>
         <span class="field-label">Durata</span>
         <div class="chips" id="optMin">${[45, 90, 120].map(m => `<button type="button" class="chip" aria-pressed="${m === 90}" data-m="${m}">${m} minuti</button>`).join("")}</div>
@@ -115,7 +152,6 @@
     const box = $(".ex-setup", host);
     const sync = () => {
       const fmt = $("input[name=fmt]:checked", box).value;
-      $("#optPI", box).classList.toggle("hidden", fmt !== "pi2627");
       $("#optAB", box).classList.toggle("hidden", fmt !== "pi2025");
     };
     $$("input[name=fmt]", box).forEach(i => i.addEventListener("change", sync));
@@ -126,7 +162,7 @@
     });
     $("#sStart", box).addEventListener("click", async () => {
       if (resumable && !(await window.UI.confirm("Iniziare una nuova simulazione? Quella in corso verrà abbandonata.", "inizia"))) return;
-      S = build($("input[name=fmt]:checked", box).value, { pc: $("#optPC", box).checked, compito, min });
+      S = build($("input[name=fmt]:checked", box).value, { compito, min });
       save(true);
       run(host);
     });
@@ -315,7 +351,7 @@
   }
 
   function view(main) {
-    main.innerHTML = `<h1>Simulazione d'esame</h1><div id="exHost"></div>`;
+    main.innerHTML = `<h1>Simulazione della prova</h1><div id="exHost"></div>`;
     const host = $("#exHost", main);
     if (S && !S.done) run(host);
     else setup(host);

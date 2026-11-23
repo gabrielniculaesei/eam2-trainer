@@ -413,7 +413,8 @@
       if (q) { start(host, [q.id]); return () => document.removeEventListener("keydown", onKey); }
     }
     F = F || defaultFilters();
-    if (params.topic && window.TOPICS[params.topic]) { F = defaultFilters(); F.topics.add(params.topic); F.caps.add(window.TOPICS[params.topic].cap); }
+    const pt = String(params.topic || "").split(",").filter(t => window.TOPICS[t]);
+    if (pt.length) { F = defaultFilters(); pt.forEach(t => { F.topics.add(t); F.caps.add(window.TOPICS[t].cap); }); }
     if (params.cap && window.CAPITOLI[params.cap] != null) { F = defaultFilters(); F.caps.add(+params.cap); }
     if (params.type && window.QTYPES[params.type]) { F.types.add(params.type); }
     if (params.wrong === "1") F.onlyWrong = true;

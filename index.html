@@ -11,17 +11,7 @@
 <meta property="og:title" content="EAM2 Trainer · Analisi Matematica 2">
 <meta property="og:description" content="Allenati per la prova intermedia di EAM2: integrali ed equazioni differenziali, nello stile delle prove.">
 <meta property="og:image" content="img/og.png">
-<meta name="theme-color" content="#fbf8ef" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#1e3a2f" media="(prefers-color-scheme: dark)">
-<script>
-  // tema applicato prima del primo disegno, per evitare il lampo di colore sbagliato
-  (function () {
-    var t = null;
-    try { t = (JSON.parse(localStorage.getItem("eam2_trainer_v1") || "{}").settings || {}).theme; } catch (e) {}
-    if (!t) t = matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-    document.documentElement.dataset.theme = t;
-  })();
-</script>
+<meta name="theme-color" content="#fdfdfb">
 <link rel="stylesheet" href="vendor/katex/katex.min.css">
 <link rel="stylesheet" href="css/style.css">
 
@@ -31,11 +21,14 @@
 <!-- dati -->
 <script defer src="data/topics.js"></script>
 <script defer src="data/mcq_cap1_seed.js"></script>
+<script defer src="data/mcq_cap1_banca.js"></script>
 <script defer src="data/mcq_cap2_seed.js"></script>
+<script defer src="data/mcq_cap2_banca.js"></script>
 <script defer src="data/vf.js"></script>
 <script defer src="data/cloze.js"></script>
 <script defer src="data/implicazioni.js"></script>
 <script defer src="data/errori.js"></script>
+<script defer src="data/teorici_banca.js"></script>
 <script defer src="data/cloze_teoremi.js"></script>
 <script defer src="data/video.js"></script>
 <script defer src="data/teoria_cap1.js"></script>
@@ -73,14 +66,13 @@
   <nav class="nav" aria-label="Sezioni">
     <a href="#/" data-view="home">home</a>
     <a href="#/teoria" data-view="teoria">teoria</a>
-    <a href="#/quiz" data-view="quiz">quiz</a>
-    <a href="#/esercizi" data-view="esercizi">esercizi</a>
-    <a href="#/grafici" data-view="grafici">grafici</a>
-    <a href="#/esame" data-view="esame">esame</a>
     <a href="#/dimostrazioni" data-view="dimostrazioni">dimostrazioni</a>
-    <a href="#/stats" data-view="stats">stats</a>
+    <a href="#/esercizi" data-view="esercizi">esercizi</a>
+    <a href="#/quiz" data-view="quiz">quiz</a>
+    <a href="#/grafici" data-view="grafici">grafici</a>
+    <a href="#/esame" data-view="esame">simulazione</a>
+    <a href="#/stats" data-view="stats">progressi</a>
   </nav>
-  <button id="themeToggle" class="theme-toggle" type="button"></button>
 </header>
 
 <main id="main" tabindex="-1">

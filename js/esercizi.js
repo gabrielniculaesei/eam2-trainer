@@ -155,9 +155,10 @@
   }
 
   /* ---------- elenco ---------- */
-  let F = { cap: null, fonte: null, topic: null, todo: false };
+  let F = { cap: null, fonte: null, topics: new Set(), todo: false };
   function listPage(main, params) {
-    if (params.topic && window.TOPICS[params.topic]) F = { cap: window.TOPICS[params.topic].cap, fonte: null, topic: params.topic, todo: false };
+    const pt = String(params.topic || "").split(",").filter(t => window.TOPICS[t]);
+    if (pt.length) F = { cap: window.TOPICS[pt[0]].cap, fonte: null, topics: new Set(pt), todo: false };
     main.innerHTML = `<h1>Esercizi</h1>
       <p class="lead">Tracce delle prove e degli appelli, esercizi delle lezioni e dei fogli della docente, svolti con il metodo visto a lezione. Ogni passaggio è verificato con il calcolo simbolico. Scrivi la risposta e controllala, oppure scopri la soluzione un passo alla volta.</p>
       <div id="genBox"></div>
@@ -173,12 +174,12 @@
         <div class="apps">${gens().map(g => `<a class="app" href="#/esercizi/${g.id}"><span class="app-cmd">${esc(g.short || g.id)}</span><span class="app-desc">${md(g.title)}</span></a>`).join("")}</div></div>`;
     }
     const chip = (l, on, a) => `<button type="button" class="chip" aria-pressed="${on}" ${a}>${l}</button>`;
-    const filtered = () => all().filter(e => (F.cap === null || e.cap === F.cap) && (!F.fonte || fonte(e) === F.fonte) && (!F.topic || e.topic === F.topic) && (!F.todo || !window.STORE.data.ex[e.id]));
+    const filtered = () => all().filter(e => (F.cap === null || e.cap === F.cap) && (!F.fonte || fonte(e) === F.fonte) && (!F.topics.size || F.topics.has(e.topic)) && (!F.todo || !window.STORE.data.ex[e.id]));
     function draw() {
       $("#eCap", main).innerHTML = chip("tutti", F.cap === null, 'data-cap=""') + [1, 2].map(c => chip(`${c}. ${esc(window.CAPITOLI[c])}`, F.cap === c, `data-cap="${c}"`)).join("");
       $("#eFonte", main).innerHTML = chip("tutte", !F.fonte, 'data-fonte=""') + Object.entries(FONTI).map(([k, l]) => chip(l, F.fonte === k, `data-fonte="${k}"`)).join("");
       const tps = [...new Set(all().filter(e => F.cap === null || e.cap === F.cap).map(e => e.topic))];
-      $("#eTopic", main).innerHTML = chip("tutti", !F.topic, 'data-topic=""') + tps.map(t => chip(`${esc(topicLabel(t))}<span class="n">${all().filter(e => e.topic === t).length}</span>`, F.topic === t, `data-topic="${t}"`)).join("");
+      $("#eTopic", main).innerHTML = chip("tutti", !F.topics.size, 'data-topic=""') + tps.map(t => chip(`${esc(topicLabel(t))}<span class="n">${all().filter(e => e.topic === t).length}</span>`, F.topics.has(t), `data-topic="${t}"`)).join("");
       $("#eTodo", main).checked = F.todo;
       const list = filtered();
       const groups = {};
@@ -192,9 +193,9 @@
     }
     $("#eFilters", main).addEventListener("click", e => {
       const b = e.target.closest(".chip"); if (!b) return;
-      if ("cap" in b.dataset) { F.cap = b.dataset.cap === "" ? null : +b.dataset.cap; F.topic = null; }
+      if ("cap" in b.dataset) { F.cap = b.dataset.cap === "" ? null : +b.dataset.cap; F.topics.clear(); }
       if ("fonte" in b.dataset) F.fonte = b.dataset.fonte || null;
-      if ("topic" in b.dataset) F.topic = b.dataset.topic || null;
+      if ("topic" in b.dataset) { const t = b.dataset.topic; if (!t) F.topics.clear(); else if (F.topics.has(t)) F.topics.delete(t); else F.topics.add(t); }
       draw();
     });
     $("#eTodo", main).addEventListener("change", e => { F.todo = e.target.checked; draw(); });

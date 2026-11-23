@@ -342,6 +342,155 @@
     }
   };
 
+  /* ======================= misura di Peano-Jordan ======================= */
+  G["g-misura"] = {
+    title: "Plurirettangoli e misura di Peano-Jordan", topic: "misura", nodo: "d-peano-jordan",
+    guida: String.raw`Una griglia di quadretti di lato $h$ copre il piano. I quadretti **pieni** stanno tutti dentro l'insieme: formano un plurirettangolo **interno**. Quelli **tratteggiati** toccano l'insieme: con i pieni formano un plurirettangolo **esterno**. Raffinando la griglia le due aree si avvicinano: l'insieme è misurabile perché l'estremo superiore delle aree interne coincide con l'estremo inferiore di quelle esterne.`,
+    mount(el) {
+      const SH = [
+        { label: String.raw`rettangoloide di $1 + \sin x$ in $[0,\pi]$`, a: 0, b: Math.PI, lo: () => 0, hi: x => 1 + Math.sin(x), exact: Math.PI + 2, ex: String.raw`\pi + 2`, v: [-0.3, 3.5, -0.3, 2.3] },
+        { label: "cerchio di raggio 1", a: -1, b: 1, lo: x => -Math.sqrt(Math.max(0, 1 - x * x)), hi: x => Math.sqrt(Math.max(0, 1 - x * x)), exact: Math.PI, ex: String.raw`\pi`, v: [-1.4, 1.4, -1.2, 1.2] }
+      ];
+      const u = frame(el, this);
+      let k = 0, n = 4;
+      chooser(u.ctl, SH, i => { k = i; draw(); }, "insieme");
+      PL().slider(row(u.ctl), { label: "quadretti per unità", min: 1, max: 30, step: 1, value: n, format: v => `${v} (h = ${fmt(1 / v, 3)})`, onInput: v => { n = v; draw(); } });
+      const p = PL().create(sub(u.fig), { xmin: -1, xmax: 1, ymin: -1, ymax: 1, height: 340, aria: "plurirettangoli interni ed esterni" });
+      function draw() {
+        const S = SH[k], h = 1 / n;
+        p.setView({ xmin: S.v[0], xmax: S.v[1], ymin: S.v[2], ymax: S.v[3] });
+        p.clear(); p.axes();
+        let inner = 0, outer = 0;
+        const i0 = Math.floor(S.a / h - 1e-9), i1 = Math.ceil(S.b / h + 1e-9);
+        for (let i = i0; i < i1; i++) {
+          const x0 = i * h, x1 = x0 + h;
+          const A = Math.max(x0, S.a), B = Math.min(x1, S.b);
+          if (B <= A) continue;
+          const full = x0 >= S.a - 1e-12 && x1 <= S.b + 1e-12;      // colonna tutta sopra [a, b]
+          const lo = PL().minmax(S.lo, A, B, 40), hi = PL().minmax(S.hi, A, B, 40);
+          // celle esterne: toccano [min lo, max hi]; interne: dentro [max lo, min hi] e colonna piena
+          const jo0 = Math.floor(lo.m / h + 1e-9), jo1 = Math.ceil(hi.M / h - 1e-9);
+          const ji0 = Math.ceil(lo.M / h - 1e-9), ji1 = Math.floor(hi.m / h + 1e-9);
+          for (let j = jo0; j < jo1; j++) {
+            const y0 = j * h, inside = full && j >= ji0 && j < ji1;
+            p.rect(x0, x1, y0, y0 + h, inside ? "pl-low" : "pl-up");
+            outer += h * h; if (inside) inner += h * h;
+          }
+        }
+        p.fn(S.hi, { from: S.a, to: S.b }); if (k === 1) p.fn(S.lo, { from: S.a, to: S.b });
+        u.read.innerHTML = md(`<div class="gx-stats"><span>area interna $= ${fmt(inner, 4)}$</span><span>area esterna $= ${fmt(outer, 4)}$</span><span>differenza $= ${fmt(outer - inner, 4)}$</span></div>
+          <p>La misura è l'unico numero compreso fra tutte le aree interne e tutte le esterne: qui $${S.ex} \\approx ${fmt(S.exact, 4)}$. ${n < 6 ? "Aumenta i quadretti: la differenza si riduce." : "La differenza è ormai piccola: viene dai quadretti lungo il bordo, che hanno area totale sempre più piccola."}</p>`);
+        typeset(u.read);
+      }
+      draw();
+    }
+  };
+
+  /* ======================= Wronskiano ======================= */
+  G["g-wronsk"] = {
+    title: "Wronskiano di due funzioni", topic: "wronskiano", nodo: "t-wronskiano",
+    guida: String.raw`In alto due funzioni $y_1$ (blu) e $y_2$ (rossa), in basso il loro Wronskiano $W(x) = y_1y_2' - y_2y_1'$. Per **soluzioni di una stessa omogenea** a coefficienti continui $W$ è identicamente nullo (soluzioni dipendenti) oppure **mai nullo** (indipendenti). L'ultima coppia mostra che per funzioni qualsiasi può succedere altro.`,
+    mount(el) {
+      const C = [
+        { label: String.raw`$e^x$, $xe^x$`, y1: x => Math.exp(x), d1: x => Math.exp(x), y2: x => x * Math.exp(x), d2: x => (1 + x) * Math.exp(x), W: String.raw`e^{2x}`, v: [-3, 1.5, -1.5, 5], wv: [-0.5, 8],
+          txt: String.raw`Soluzioni di $y'' - 2y' + y = 0$ (radice $1$ doppia). $W = e^{2x}$ non si annulla mai: sono **indipendenti**.` },
+        { label: String.raw`$\cos 2x$, $\sin 2x$`, y1: x => Math.cos(2 * x), d1: x => -2 * Math.sin(2 * x), y2: x => Math.sin(2 * x), d2: x => 2 * Math.cos(2 * x), W: "2", v: [-3.2, 3.2, -1.5, 1.5], wv: [-0.5, 3],
+          txt: String.raw`Soluzioni di $y'' + 4y = 0$. $W \equiv 2$, costante e diverso da zero: **indipendenti**.` },
+        { label: String.raw`$e^x$, $2e^x$`, y1: x => Math.exp(x), d1: x => Math.exp(x), y2: x => 2 * Math.exp(x), d2: x => 2 * Math.exp(x), W: "0", v: [-3, 1.5, -0.5, 8], wv: [-1, 1],
+          txt: String.raw`$y_2 = 2y_1$: le funzioni sono **dipendenti** e $W \equiv 0$ in ogni punto.` },
+        { label: String.raw`$x$, $x^2$`, y1: x => x, d1: () => 1, y2: x => x * x, d2: x => 2 * x, W: "x^2", v: [-2, 2, -2, 4], wv: [-0.5, 4],
+          txt: String.raw`$W = x^2$ si annulla **solo** in $0$: per il teorema, $x$ e $x^2$ **non** possono essere soluzioni di una stessa omogenea $y'' + a(x)y' + b(x)y = 0$ con $a$, $b$ continue in un intervallo che contiene $0$.` }
+      ];
+      const u = frame(el, this);
+      let k = 0;
+      chooser(u.ctl, C, i => { k = i; draw(); }, "coppia di funzioni");
+      const top = PL().create(sub(u.fig), { xmin: -1, xmax: 1, ymin: -1, ymax: 1, height: 240, aria: "le due funzioni" });
+      const bot = PL().create(sub(u.fig), { xmin: -1, xmax: 1, ymin: -1, ymax: 1, height: 170, aria: "il Wronskiano" });
+      function draw() {
+        const c = C[k];
+        top.setView({ xmin: c.v[0], xmax: c.v[1], ymin: c.v[2], ymax: c.v[3] });
+        bot.setView({ xmin: c.v[0], xmax: c.v[1], ymin: c.wv[0], ymax: c.wv[1] });
+        top.clear(); top.axes(); bot.clear(); bot.axes({ ylabel: "W" });
+        top.fn(c.y1); top.fn(c.y2, { cls: "c2" });
+        const W = x => c.y1(x) * c.d2(x) - c.y2(x) * c.d1(x);
+        bot.area(W, c.v[0], c.v[1]); bot.fn(W, { cls: "c2" });
+        u.read.innerHTML = md(`<p>$W(x) = \\begin{vmatrix} y_1 & y_2 \\\\ y_1' & y_2' \\end{vmatrix} = ${c.W}$.</p><p>${c.txt}</p>`);
+        typeset(u.read);
+      }
+      draw();
+    }
+  };
+
+  /* ======================= campo di direzioni (primo ordine) ======================= */
+  G["g-campo"] = {
+    title: "Campo di direzioni e problema di Cauchy", topic: "primo_ordine", nodo: "t-omog-primo",
+    guida: String.raw`In ogni punto $(x, y)$ un trattino ha la pendenza che l'equazione impone a una soluzione che passa di lì. Le soluzioni (in grigio, una per ogni $k$) seguono i trattini e **non si incrociano mai**. Trascina il punto $(x_0, y_0)$: la curva blu è l'**unica** soluzione del problema di Cauchy con $y(x_0) = y_0$.`,
+    mount(el) {
+      const EQ = [
+        { label: String.raw`$y' + 2y = 0$`, F: (x, y) => -2 * y, y: (x, k) => k * Math.exp(-2 * x), k: (x0, y0) => y0 * Math.exp(2 * x0), gen: String.raw`y = k\,e^{-2x}` },
+        { label: String.raw`$y' + y = x$`, F: (x, y) => x - y, y: (x, k) => x - 1 + k * Math.exp(-x), k: (x0, y0) => (y0 - x0 + 1) * Math.exp(x0), gen: String.raw`y = x - 1 + k\,e^{-x}` },
+        { label: String.raw`$y' + 2xy = x$`, F: (x, y) => x - 2 * x * y, y: (x, k) => 0.5 + k * Math.exp(-x * x), k: (x0, y0) => (y0 - 0.5) * Math.exp(x0 * x0), gen: String.raw`y = \tfrac12 + k\,e^{-x^2}` }
+      ];
+      const u = frame(el, this);
+      let e = 0, x0 = 0, y0 = 1;
+      chooser(u.ctl, EQ, i => { e = i; draw(); }, "equazione");
+      typeset(u.ctl);
+      const p = PL().create(sub(u.fig), { xmin: -3, xmax: 3, ymin: -3, ymax: 3, height: 380, aria: "campo di direzioni" });
+      let hd = null;
+      function draw() {
+        const E = EQ[e];
+        p.clear("areas", "rects", "curves", "marks"); p.axes();
+        const L = 0.13;
+        for (let x = -2.75; x <= 2.8; x += 0.5) for (let y = -2.75; y <= 2.8; y += 0.5) {
+          const m = E.F(x, y), d = L / Math.sqrt(1 + m * m);
+          p.line(x - d, y - m * d, x + d, y + m * d, "pl-mark faint");
+        }
+        [-3, -2, -1, -0.5, 0.5, 1, 2, 3].forEach(c => p.fn(x => E.y(x, c), { cls: "faint" }));
+        const k = E.k(x0, y0);
+        p.fn(x => E.y(x, k));
+        if (!hd) hd = p.handle(x0, y0, { label: "punto iniziale", snap: 0.25, onDrag: (x, y) => { x0 = Math.max(-2.75, Math.min(2.75, x)); y0 = Math.max(-2.75, Math.min(2.75, y)); draw(); } });
+        u.read.innerHTML = md(`<p>Integrale generale: $${E.gen}$, $k \\in \\mathbb{R}$.</p><p>Problema di Cauchy con $y(${fmt(x0, 2)}) = ${fmt(y0, 2)}$: si impone la condizione e si trova $k = ${fmt(k, 3)}$. Una sola curva passa per il punto: è il teorema di **esistenza e unicità**.</p>`);
+        typeset(u.read);
+      }
+      draw();
+    }
+  };
+
+  /* ======================= somiglianza: quando serve x^s ======================= */
+  G["g-somiglianza"] = {
+    title: "Metodo di somiglianza: il fattore x^s", topic: "somiglianza", nodo: "m-somiglianza",
+    guida: String.raw`Il termine noto è $f(x) = e^{hx}p(x)$ con $p$ di grado $m$. Sull'asse reale ci sono le radici dell'equazione caratteristica (punti verdi) e $h$ (il punto arancione, trascinabile). Se $h$ non è radice, $s = 0$; se cade su una radice, $s$ è la sua **molteplicità**. L'integrale particolare si cerca nella forma $\bar y = x^s e^{hx} q(x)$, con $q$ di grado $m$.`,
+    mount(el) {
+      const u = frame(el, this);
+      let r1 = 1, r2 = 2, h = 3, m = 1;
+      const r = row(u.ctl);
+      PL().slider(r, { label: String.raw`radice $\alpha_1$`, min: -3, max: 3, step: 0.5, value: r1, onInput: v => { r1 = v; draw(); } });
+      PL().slider(r, { label: String.raw`radice $\alpha_2$`, min: -3, max: 3, step: 0.5, value: r2, onInput: v => { r2 = v; draw(); } });
+      chooser(u.ctl, [{ label: "$m = 0$" }, { label: "$m = 1$" }, { label: "$m = 2$" }], i => { m = i; draw(); }, "grado di p");
+      $$(".gx-choose .chip", u.ctl).forEach((c, i) => c.setAttribute("aria-pressed", i === m));
+      typeset(u.ctl);
+      const p = PL().create(sub(u.fig), { xmin: -3.5, xmax: 3.5, ymin: -1, ymax: 1, height: 130, aria: "radici e h sull'asse reale" });
+      let hd = null;
+      const q = ["a", "ax + b", "ax^2 + bx + c"];
+      const sgn = v => v < 0 ? `+ ${fmt(-v, 2)}` : v > 0 ? `- ${fmt(v, 2)}` : "";
+      function draw() {
+        p.clear("areas", "rects", "curves", "marks"); p.axes();
+        p.dot(r1, 0, "pl-dot c", 7, "marks"); p.dot(r2, 0, "pl-dot c", r1 === r2 ? 11 : 7, "marks");
+        if (!hd) hd = p.handle(h, 0, { label: "h", lockY: true, snap: 0.5, clampX: [-3, 3], onDrag: x => { h = x; draw(); } });
+        const s = (h === r1 ? 1 : 0) + (h === r2 ? 1 : 0);
+        const car = r1 === r2 ? `(\\alpha ${sgn(r1)})^2` : `(\\alpha ${sgn(r1)})(\\alpha ${sgn(r2)})`;
+        const hx = h === 0 ? "" : `e^{${h === 1 ? "" : h === -1 ? "-" : fmt(h, 2)}x}`;
+        const pf = m === 0 ? "" : m === 1 ? "x" : "x^2";
+        const form = `${s === 0 ? "" : s === 1 ? "x" : "x^2"}${hx}${m === 0 && !s && !hx ? "a" : m === 0 ? "\\,a" : `(${q[m]})`}`;
+        u.read.innerHTML = md(`<p>Equazione caratteristica $${car} = 0$. Termine noto del tipo $f(x) = ${(pf + (pf && hx ? "\\," : "") + hx) || "1"}$ (cioè $h = ${fmt(h, 2)}$, $m = ${m}$).</p>
+          <p>${s === 0 ? `$h$ non è radice: $s = 0$.` : s === 1 ? `$h$ è radice **semplice**: $s = 1$.` : `$h$ è radice **doppia**: $s = 2$.`} Si cerca $\\bar y = ${form}$.</p>
+          <p class="small dim">${s ? "Senza il fattore $x^s$ la forma risolverebbe (in parte) l'omogenea e i coefficienti non si troverebbero." : "Trascina $h$ su una radice per vedere quando serve il fattore $x$."}</p>`);
+        typeset(u.read);
+      }
+      draw();
+    }
+  };
+
   /* ======================= vista ======================= */
   function view(main, params, rest) {
     const id = rest && rest[0];

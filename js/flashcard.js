@@ -1,7 +1,9 @@
-/* Vista "dimostrazioni": flashcard dei teoremi ★ con ripasso dilazionato
-   (Leitner, box 1-5). Quattro modalità: leggi e ripeti, riordina i passi,
-   completa (cloze), scrivi e confronta (checklist dei passi).
-   Route: #/dimostrazioni, ?id=t-media (una carta), ?due=1 (solo scadute e nuove), ?mode=... */
+/* Vista "dimostrazioni": i teoremi da saper dimostrare (★), divisi per
+   capitolo e sezione. Per ognuno: studialo nella teoria (con grafico e
+   collegamenti) e allenati in quattro modi: leggi e ripeti, riordina i passi,
+   completa (cloze), scrivi e confronta (checklist dei passi). Si può anche fare
+   una serie di più teoremi, prima quelli da ripassare.
+   Route: #/dimostrazioni, ?id=t-media (un teorema), ?sec=s-proprieta, ?mode=riordina */
 (function () {
   "use strict";
   const { $, $$, esc, md, typeset, topicLabel } = window.UI;
@@ -10,27 +12,20 @@
   const MODES = {
     leggi: { l: "leggi e ripeti", d: "leggi l'enunciato, ripeti la dimostrazione a voce o su carta, poi confronta" },
     riordina: { l: "riordina i passi", d: "i passi della dimostrazione sono mescolati: rimettili in ordine" },
-    completa: { l: "completa", d: "la dimostrazione con gli spazi vuoti, come nel quesito 1 della prova" },
+    completa: { l: "completa", d: "la dimostrazione con gli spazi vuoti da riempire, come nei quesiti di completamento" },
     scrivi: { l: "scrivi e confronta", d: "scrivi la dimostrazione, poi spunta i passi che hai scritto" }
   };
-  const SIZES = [10, 20, 0];
 
+  /* esito dell'ultimo tentativo: "sapevo", "da ripassare", "mai provata" */
   function status(id) {
     const s = window.STORE.data.cards[id];
-    if (!s) return "nuova";
-    return s.due <= Date.now() ? "scaduta" : "in pari";
+    if (!s) return "mai provata";
+    return s.last ? "sapevo" : "da ripassare";
   }
-  function dueCount() {
-    return T().proofs().filter(n => status(n.id) !== "in pari").length;
-  }
-  /* priorità: scadute (le più vecchie prima), poi nuove, poi le altre per box crescente */
-  function ordered(list) {
-    const st = window.STORE.data.cards;
-    const w = n => { const s = st[n.id]; if (!s) return 1e15; if (s.due <= Date.now()) return s.due; return 2e15 + s.box * 1e13 + s.due; };
-    return list.slice().sort((a, b) => w(a) - w(b));
-  }
+  const RANK = { "da ripassare": 0, "mai provata": 1, "sapevo": 2 };
+  const ordered = list => list.slice().sort((a, b) => RANK[status(a.id)] - RANK[status(b.id)]);
 
-  let F = { mode: "leggi", size: 10, dueOnly: true, cap: null };
+  let F = { mode: "leggi", cap: null, sec: null };
   let S = null;
   let onKey = null;
 
@@ -38,68 +33,56 @@
     main.innerHTML = `<h1>Dimostrazioni</h1><div id="fcHost"></div>`;
     const host = $("#fcHost", main);
     if (params.mode && MODES[params.mode]) F.mode = params.mode;
+    F.sec = params.sec || null;
     onKey = null;
     const keyH = e => { if (onKey && !(e.metaKey || e.ctrlKey || e.altKey) && !window.UI.typing(e)) onKey(e); };
     document.addEventListener("keydown", keyH);
     if (params.id && T().byId(params.id)) start(host, [params.id]);
-    else if (params.due === "1") { F.dueOnly = true; startFiltered(host); }
     else setup(host);
     return () => document.removeEventListener("keydown", keyH);
   }
 
-  function pool() {
-    return T().proofs().filter(n => F.cap === null || n._cap.cap === F.cap)
-      .filter(n => !F.dueOnly || status(n.id) !== "in pari");
-  }
+  const pool = () => T().proofs().filter(n => (F.cap === null || n._cap.cap === F.cap) && (!F.sec || n._sec.id === F.sec));
 
-  function startFiltered(host) {
-    let list = ordered(pool()).map(n => n.id);
-    if (F.size) list = list.slice(0, F.size);
-    if (!list.length) { setup(host, "Nessuna carta da ripassare oggi: sei in pari. Togli il filtro per ripassare comunque."); return; }
-    start(host, list);
-  }
-
-  function setup(host, msg) {
+  function setup(host) {
     onKey = null; S = null;
-    const all = T().proofs();
-    const st = window.STORE.data.cards;
-    const boxes = [0, 0, 0, 0, 0, 0];
-    all.forEach(n => { boxes[st[n.id] ? st[n.id].box : 0]++; });
     const chip = (l, on, a) => `<button type="button" class="chip" aria-pressed="${on}" ${a}>${l}</button>`;
+    const badge = st => `<span class="tag ${st === "sapevo" ? "ok" : st === "da ripassare" ? "warn" : ""}">${st}</span>`;
     host.innerHTML = `<div class="fc-setup">
-      <p class="lead">Le ${all.length} dimostrazioni da saper scrivere (★). Ogni carta torna quando serve: subito se la sbagli, dopo 1, 3, 7, 14, 30 giorni se la sai.</p>
-      ${msg ? `<p class="notice">${esc(msg)}</p>` : ""}
-      <div class="stat-grid">
-        <div class="stat"><div class="v">${dueCount()}</div><div class="l">da ripassare oggi (scadute + nuove)</div></div>
-        <div class="stat"><div class="v">${boxes[0]}</div><div class="l">mai viste</div></div>
-        <div class="stat"><div class="v">${boxes[4] + boxes[5]}</div><div class="l">consolidate (box 4-5)</div></div>
-      </div>
+      <p class="lead">Le dimostrazioni da saper scrivere, nell'ordine del programma. Per capirne una aprila nella <strong>teoria</strong> (grafico, perché di ogni passo, collegamenti), poi allenati: prima <strong>riordina</strong> e <strong>completa</strong>, alla fine <strong>scrivila</strong> da solo.</p>
       <div class="card">
         <span class="field-label">Modalità</span>
         <div class="chips" id="fcMode">${Object.entries(MODES).map(([k, m]) => chip(m.l, F.mode === k, `data-mode="${k}"`)).join("")}</div>
         <p class="dim small" id="fcModeD" style="margin:.4rem 0 0">${MODES[F.mode].d}</p>
         <span class="field-label">Capitolo</span>
-        <div class="chips" id="fcCap">${chip("tutti", F.cap === null, 'data-cap=""')}${chip("1. Integrali", F.cap === 1, 'data-cap="1"')}${chip("2. Equazioni differenziali", F.cap === 2, 'data-cap="2"')}</div>
-        <span class="field-label">Quante carte</span>
-        <div class="chips" id="fcSize">${SIZES.map(n => chip(n ? String(n) : "tutte", F.size === n, `data-size="${n}"`)).join("")}</div>
-        <label class="check"><input type="checkbox" id="fcDue" ${F.dueOnly ? "checked" : ""}> solo scadute e nuove</label>
-        <div class="row" style="margin-top:1rem"><button class="btn" id="fcStart">inizia</button><span class="badge" id="fcCount"></span></div>
+        <div class="chips" id="fcCap">${chip("tutti", F.cap === null, 'data-cap=""')}${[1, 2].map(c => chip(`${c}. ${esc(window.CAPITOLI[c])}`, F.cap === c, `data-cap="${c}"`)).join("")}</div>
+        <div class="row" style="margin-top:1rem"><button class="btn" id="fcStart">allenati su tutte in serie</button><span class="badge" id="fcCount"></span></div>
+        <p class="dim small" style="margin:.4rem 0 0">In serie vengono prima quelle da ripassare, poi quelle mai provate.</p>
       </div>
-      <div class="card"><h2>Tutte le carte</h2><ul class="t-list">${ordered(all).map(n => {
-        const s = st[n.id];
-        return `<li><a href="#/dimostrazioni?id=${n.id}"><span class="t-kind">${s ? "box " + s.box : "nuova"}</span><span class="t-label">${esc(n.label)}</span><span class="dim small">${status(n.id)}</span></a></li>`;
-      }).join("")}</ul></div></div>`;
-    const count = () => { $("#fcCount", host).textContent = `${Math.min(F.size || 999, pool().length)} carte`; };
+      <div id="fcList"></div></div>`;
+    function drawList() {
+      const list = pool();
+      const secs = [];
+      list.forEach(n => { let g = secs.find(x => x.sec.id === n._sec.id); if (!g) secs.push(g = { sec: n._sec, cap: n._cap, items: [] }); g.items.push(n); });
+      $("#fcList", host).innerHTML = (F.sec ? `<p class="small"><a href="#/dimostrazioni" id="fcAll">← tutte le dimostrazioni</a></p>` : "") +
+        (secs.map(g => `<section class="card"><h2>${g.cap.cap}. ${esc(g.sec.label)}</h2>
+        <ul class="proof-list">${g.items.map(n => `<li>
+          <div class="proof-top"><a href="#/teoria/${n.id}" class="proof-name">${esc(n.label)}</a>${badge(status(n.id))}</div>
+          ${n.idea ? `<p class="dim small proof-idea">${md(n.idea)}</p>` : ""}
+          <div class="row proof-act">
+            <a class="btn small" href="#/teoria/${n.id}">studia${n.grafico && window.GRAFICI && window.GRAFICI[n.grafico] ? " (con grafico)" : ""}</a>
+            ${Object.entries(MODES).filter(([k]) => k !== "completa" || n.cloze).map(([k, m]) => `<a class="btn small ghost" href="#/dimostrazioni?id=${n.id}&mode=${k}">${esc(m.l)}</a>`).join("")}
+          </div></li>`).join("")}</ul></section>`).join("") || `<p class="notice">Nessuna dimostrazione in questa sezione.</p>`);
+      $("#fcCount", host).textContent = `${list.length} dimostrazion${list.length === 1 ? "e" : "i"}`;
+      typeset($("#fcList", host));
+    }
     $(".fc-setup", host).addEventListener("click", e => {
       const b = e.target.closest(".chip"); if (!b) return;
       if (b.dataset.mode) { F.mode = b.dataset.mode; $("#fcModeD", host).textContent = MODES[F.mode].d; $$("#fcMode .chip", host).forEach(c => c.setAttribute("aria-pressed", c === b)); }
-      if ("cap" in b.dataset) { F.cap = b.dataset.cap === "" ? null : +b.dataset.cap; $$("#fcCap .chip", host).forEach(c => c.setAttribute("aria-pressed", c === b)); }
-      if ("size" in b.dataset) { F.size = +b.dataset.size; $$("#fcSize .chip", host).forEach(c => c.setAttribute("aria-pressed", c === b)); }
-      count();
+      if ("cap" in b.dataset) { F.cap = b.dataset.cap === "" ? null : +b.dataset.cap; F.sec = null; $$("#fcCap .chip", host).forEach(c => c.setAttribute("aria-pressed", c === b)); drawList(); }
     });
-    $("#fcDue", host).addEventListener("change", e => { F.dueOnly = e.target.checked; count(); });
-    $("#fcStart", host).addEventListener("click", () => startFiltered(host));
-    count();
+    $("#fcStart", host).addEventListener("click", () => { const l = ordered(pool()).map(n => n.id); if (l.length) start(host, l); });
+    drawList();
   }
 
   function start(host, ids) {
@@ -112,7 +95,8 @@
       <div class="progress"><span style="width:${S.idx / S.ids.length * 100}%"></span></div>
       <span class="count">${S.idx + 1} / ${S.ids.length}</span></div>
       <div class="card q-card">
-        <div class="q-meta"><span class="tag type">${esc(MODES[F.mode].l)}</span><span class="tag">${esc(topicLabel(n.topic))}</span><span class="tag">${status(n.id)}</span></div>
+        <div class="q-meta"><span class="tag type">${esc(MODES[F.mode].l)}</span><span class="tag">${esc(topicLabel(n.topic))}</span><span class="tag">${status(n.id)}</span>
+          <span class="spacer"></span><a class="small" href="#/teoria/${n.id}">studia nella teoria</a></div>
         <h2>${esc(n.label)}</h2>
         ${T().enunciatoHtml(n)}
         <div id="fcBody"></div>
@@ -130,7 +114,7 @@
     typeset(host);
   }
 
-  /* pulsanti di autovalutazione: registra e passa alla carta successiva */
+  /* pulsanti di autovalutazione: registra e passa al teorema successivo */
   function grade(host, fb, n, suggestion) {
     fb.insertAdjacentHTML("beforeend", `<div class="row" style="margin-top:1rem">
       <button class="btn" id="fcOk">la sapevo <kbd>1</kbd></button>
@@ -250,13 +234,13 @@
     onKey = null;
     const ok = S.results.filter(r => r.ok).length;
     const ko = S.results.filter(r => !r.ok);
-    host.innerHTML = `<div class="card"><div class="result-score">${ok} / ${S.results.length}</div><p class="dim">carte sapute in questa sessione</p>
-      ${ko.length ? `<p>Torneranno domani:</p><ul>${ko.map(r => `<li><a href="#/teoria/${r.id}">${esc(T().byId(r.id).label)}</a></li>`).join("")}</ul>` : "<p>Tutte sapute. Le rivedrai fra qualche giorno.</p>"}
-      <div class="row"><button class="btn" id="fcAgain">nuova sessione</button><a class="btn ghost" href="#/">home</a></div></div>`;
+    host.innerHTML = `<div class="card"><div class="result-score">${ok} / ${S.results.length}</div><p class="dim">dimostrazioni sapute</p>
+      ${ko.length ? `<p>Da ripassare (riaprile nella teoria e rifai il riordino):</p><ul>${ko.map(r => `<li><a href="#/teoria/${r.id}">${esc(T().byId(r.id).label)}</a></li>`).join("")}</ul>` : "<p>Tutte sapute. Prova la modalità <strong>scrivi e confronta</strong>, la più vicina alla prova.</p>"}
+      <div class="row"><button class="btn" id="fcAgain">torna all'elenco</button><a class="btn ghost" href="#/">home</a></div></div>`;
     $("#fcAgain", host).addEventListener("click", () => setup(host));
     S = null;
   }
 
-  window.FLASHCARD = { dueCount, status };
+  window.FLASHCARD = { status };
   window.ROUTER.register("dimostrazioni", view);
 })();
