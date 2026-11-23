@@ -1,0 +1,13 @@
+materiale/
+CLAUDE.md
+PLAN.md
+PROGRESS.md
+PROMPT_AVVIO.md
+IMPROVEMENTS.md
+docs/
+seed/
+node_modules/
+tools/
+tests/
+__pycache__/
+.DS_Store

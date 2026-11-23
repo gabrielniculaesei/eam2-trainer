@@ -1,0 +1,19 @@
+# materiale del corso: non va mai pubblicato
+materiale/
+
+# file interni di lavoro (istruzioni, piano, avanzamento, specifiche)
+CLAUDE.md
+PLAN.md
+PROGRESS.md
+PROMPT_AVVIO.md
+IMPROVEMENTS.md
+docs/
+seed/
+
+# strumenti e sistema
+node_modules/
+tools/out/
+__pycache__/
+*.pyc
+.DS_Store
+.vercel
