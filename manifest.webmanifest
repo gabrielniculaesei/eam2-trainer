@@ -1,0 +1,14 @@
+{
+  "name": "EAM2 Trainer",
+  "short_name": "EAM2",
+  "description": "Allenamento per la prova intermedia di Elementi di Analisi Matematica 2.",
+  "lang": "it",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#fdfdfb",
+  "theme_color": "#fdfdfb",
+  "icons": [
+    { "src": "img/logo.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}

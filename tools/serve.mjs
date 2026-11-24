@@ -10,7 +10,7 @@ const TYPES = {
   ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8",
   ".mjs": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8",
   ".svg": "image/svg+xml", ".png": "image/png", ".json": "application/json",
-  ".woff2": "font/woff2", ".ico": "image/x-icon", ".md": "text/plain; charset=utf-8"
+  ".woff2": "font/woff2", ".webmanifest": "application/manifest+json", ".ico": "image/x-icon", ".md": "text/plain; charset=utf-8"
 };
 const BLOCKED = ["materiale", "node_modules", ".git"];
 
